@@ -2,6 +2,8 @@ from peewee import *
 from user_srv.settings import settings
 import hashlib
 from passlib.hash import pbkdf2_sha256
+import time
+from datetime import date
 
 
 class BaseModel(Model):
@@ -41,5 +43,14 @@ if __name__ == "__main__":
     #     user.password = pbkdf2_sha256.hash("admin1232")
     #     user.save()
 
-    # for user in User.select():
+    users = User.select()
+    users = users.limit(2).offset(2)
+
+    for user in users:
+        print(user.mobile)
+    # if user.birthday:
+    #     print(user.birthday)
+    #     u_time = int(time.mktime(user.birthday.timetuple()))
+    #     print(u_time)
+    #     print(date.fromtimestamp(u_time))
     #     print(pbkdf2_sha256.verify("admin1232", user.password))
