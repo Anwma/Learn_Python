@@ -4,6 +4,8 @@ import grpc
 from peewee import DoesNotExist
 from loguru import logger
 from user_srv.model.models import User
+from passlib.hash import pbkdf2_sha256
+from google.protobuf import empty_pb2
 
 from user_srv.proto import user_pb2, user_pb2_grpc
 
@@ -65,6 +67,42 @@ class UserServicer(user_pb2_grpc.UserServicer):
             return self.convert_user_to_rsp(user)
 
         except User.DoesNotExist as e:
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details("用户不存在")
+            return user_pb2.UserInfoResponse()
+
+    @logger.catch
+    def CreateUser(self, request: user_pb2.CreateUserInfo, context):
+        # 新建用户,web开发 - 表单验证 没有必要做
+        try:
+            user = User.get(User.mobile == request.mobile)
+            context.set_code(grpc.StatusCode.ALREADY_EXISTS)
+            context.set_details("用户已存在")
+            return user_pb2.UserInfoResponse()
+        except User.DoesNotExist as e:
+            pass
+
+        user = User()
+        # 前面是python的命名规范 后面是静态语言的规范
+        user.nick_name = request.nickName
+        user.mobile = request.mobile
+        user.password = pbkdf2_sha256.hash(request.passWord)
+        user.save()
+
+        return self.convert_user_to_rsp(user)
+
+    @logger.catch
+    def UpdateUser(self, request: user_pb2.UpdateUserInfo, context):
+        # 更新用户
+        try:
+            user = User.get(User.id == request.id)
+
+            user.nick_name = request.nickName
+            user.gender = request.gender
+            user.birthday = date.fromtimestamp(request.birthDay)
+            user.save()
+            return empty_pb2.Empty()
+        except DoesNotExist:
             context.set_code(grpc.StatusCode.NOT_FOUND)
             context.set_details("用户不存在")
             return user_pb2.UserInfoResponse()
