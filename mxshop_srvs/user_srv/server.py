@@ -13,6 +13,8 @@ sys.path.insert(0, BASE_DIR)
 
 from user_srv.proto import user_pb2_grpc, user_pb2
 from user_srv.handler.user import UserServicer
+from common.grpc_health.v1 import health_pb2_grpc, health_pb2
+from common.grpc_health.v1 import health
 
 
 def on_exit(signo, frame):
@@ -25,7 +27,7 @@ def serve():
     parser.add_argument('--ip',
                         nargs="?",
                         type=str,
-                        default="127.0.0.1",
+                        default="192.168.245.1",
                         help="binding ip"
                         )
     parser.add_argument('--port',
@@ -36,8 +38,15 @@ def serve():
                         )
     args = parser.parse_args()
     logger.add("logs/user_srv_{time}.log")
+
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+
+    # 注册用户服务
     user_pb2_grpc.add_UserServicer_to_server(UserServicer(), server)
+    # 注册健康检查
+    health_servicer = health.HealthServicer()
+    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
+
     server.add_insecure_port(f'{args.ip}:{args.port}')
     """
         windows下支持的信号是有限的：
