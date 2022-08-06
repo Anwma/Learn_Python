@@ -14,7 +14,6 @@ def register(name, id, address, port):
         "Address": address,
         "Port": port,
         "Check": {
-            # "HTTP": f"http://{address}:{port}/health",
             "GRPC": f"{address}:{port}",
             "GRPCUseTLS": False,  # 不需要做安全验证
             "Timeout": "5s",
@@ -53,4 +52,3 @@ if __name__ == "__main__":
     # register("mxshop-web", "mxshop-web", "192.168.245.1", 50051)
     # deregister("mxshop-web")
     rsp = filter_service("user-srv")
-

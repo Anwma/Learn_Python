@@ -3,7 +3,9 @@ import signal
 import os
 import sys
 import argparse
+import socket
 from concurrent import futures
+from functools import partial
 from loguru import logger
 
 import grpc
@@ -15,11 +17,21 @@ from user_srv.proto import user_pb2_grpc, user_pb2
 from user_srv.handler.user import UserServicer
 from common.grpc_health.v1 import health_pb2_grpc, health_pb2
 from common.grpc_health.v1 import health
+from common.register import consul
+from user_srv.settings import settings
 
 
 def on_exit(signo, frame):
     logger.info("进程中断")
     sys.exit(0)
+
+
+def get_free_tcp_port():
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp.bind(("", 0))
+    _, port = tcp.getsockname()
+    tcp.close()
+    return port
 
 
 def serve():
@@ -59,6 +71,15 @@ def serve():
 
     logger.info(f"启动服务：{args.ip}:{args.port}")
     server.start()
+    logger.info(f"服务注册开始")
+    register = consul.ConsulRegister(settings.CONSUL_HOST, settings.CONSUL_PORT)
+    # 没有注册成功
+    if not register.register(name=settings.SERVICE_NAME, id=settings.SERVICE_NAME,
+                             address=args.ip, port=args.port, tags=settings.SERVICE_TAGS, check=None):
+        logger.info(f"服务注册失败")
+        sys.exit(0)
+    logger.info(f"服务注册成功")
+
     server.wait_for_termination()
 
 
