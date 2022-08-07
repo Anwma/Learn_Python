@@ -45,10 +45,15 @@ def serve():
     parser.add_argument('--port',
                         nargs="?",
                         type=int,
-                        default=50051,
+                        default=0,
                         help="the listening port"
                         )
     args = parser.parse_args()
+
+    if args.port == 0:
+        port = get_free_tcp_port()
+    else:
+        port = args.port
     logger.add("logs/user_srv_{time}.log")
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -59,7 +64,7 @@ def serve():
     health_servicer = health.HealthServicer()
     health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
 
-    server.add_insecure_port(f'{args.ip}:{args.port}')
+    server.add_insecure_port(f'{args.ip}:{port}')
     """
         windows下支持的信号是有限的：
             SIGINT ctrl+c 中断
@@ -69,13 +74,13 @@ def serve():
     signal.signal(signal.SIGINT, on_exit)
     signal.signal(signal.SIGTERM, on_exit)
 
-    logger.info(f"启动服务：{args.ip}:{args.port}")
+    logger.info(f"启动服务：{args.ip}:{port}")
     server.start()
     logger.info(f"服务注册开始")
     register = consul.ConsulRegister(settings.CONSUL_HOST, settings.CONSUL_PORT)
     # 没有注册成功
     if not register.register(name=settings.SERVICE_NAME, id=settings.SERVICE_NAME,
-                             address=args.ip, port=args.port, tags=settings.SERVICE_TAGS, check=None):
+                             address=args.ip, port=port, tags=settings.SERVICE_TAGS, check=None):
         logger.info(f"服务注册失败")
         sys.exit(0)
     logger.info(f"服务注册成功")
@@ -96,5 +101,6 @@ if __name__ == "__main__":
     # logger.warning("警告信息")
     # logger.error("错误信息")
     # logger.critical("严重错误信息")
+    # print(get_free_tcp_port())
     logging.basicConfig()
     serve()
